@@ -40,66 +40,68 @@ def tictactoe():
 
     class Game:
         def __init__(self):
-            self.player_symbol = None
+            self.games = 0 
             self.game_over = False
-            self.empty = '┈'
+            self.empty = ' '
             self.matrix = self.make_empty_matrix()
-            self.setup()
 
         def start(self):
-            if not self.setup_complete:
-                self.setup()
+            self.setup()
+            self.games += 1
             self.matrix = self.make_empty_matrix()
-            if self.player_symbol == 'x':
-                self.player_turn = True
-            else:
-                self.player_turn = False
             while not self.game_over:
                 self.make_move()
         
         def setup(self):
-            print("######### -- let's play tic-tac-toe -- #########")
-            while not self.player_symbol:
-                symbol = input("choose symbol (x or o only) ")
-                if not symbol in ['x', 'o']:
-                    print("symbol not allowed")
-                    continue
-                self.player_symbol = symbol
-            s = ['x', 'o']
-            s.remove(self.player_symbol)
-            self.opponent_symbol = s[0]
-            self.setup_complete = True
+            self.player_turn = False
+            s = ['o', 'x']
+            r = random.randint(0,1)
+            self.player_symbol = s[r]
+            self.opponent_symbol = s[(r-1)*-1]
+            if r:
+                self.player_turn = True
+            print(f"---- you are playing: {self.player_symbol}")
+            if self.games == 0:
+                print("---- type 'exit', 'quit or 'q' to exit the program")
 
-        @staticmethod
-        def make_empty_matrix():
-            return [["┈", "┈", "┈"] for i in range(3)]
+            return
+
+        def make_empty_matrix(self):
+            return [[self.empty for i in range(3)] for i in range(3)]
         
         
         def print_board(self):
-            print("   1  2  3")
-            print("  ┌-------┐")
+            print("    1   2   3")
+            print("  ┌───┬───┬───┐")
             for i in range(3):
                 row = ["A", "B", "C"]
-                print(f"{row[i]} │{self.matrix[i][0]}  {self.matrix[i][1]}  {self.matrix[i][2]}│")
-            print("  └-------┘")
+                print(f"{row[i]} │ {self.matrix[i][0]} │ {self.matrix[i][1]} │ {self.matrix[i][2]} │")
+                if i < 2:
+                    print("  ├───┼───┼───┤")
+                else:
+                    print("  └───┴───┴───┘")
+
+        def check_if_exit(self, inp):
+            if inp.strip().lower() in ['exit', 'quit', 'q']:
+                self.game_over = True
+                return 1
 
         def make_move(self):
             if self.player_turn:
-                move = input("make a move: ").upper()
-                if move.strip() in ['EXIT', 'QUIT']:
-                    self.game_over = True
-                    return
+                self.print_board()
                 valid_move = False
                 while not valid_move:
                     try:
+                        move = input("make a move: ")
+                        if self.check_if_exit(move):
+                            return
                         coords = self.parse_move(move)
                         address = self.matrix[coords[1]][coords[0]]
-                        if not address == '┈':
+                        if not len(address.strip()) == 0:
                             raise Exception
                         valid_move = True
-                    except:
+                    except Exception as e:
                         print(f'❗ --- illegal move')
-                        move = input("make a move: ")
                         continue
                         
                 self.matrix[coords[1]][coords[0]] = self.player_symbol
@@ -134,9 +136,7 @@ def tictactoe():
                 return [2, 0]
             return
 
-            
         def ai_make_move(self):
-
             made_move = False
             if opp := self.check_opportunities('win'):
                 # test for move that wins the game
@@ -152,7 +152,7 @@ def tictactoe():
                 row = random.randint(0, 2)
                 col = random.randint(0, 2)
                 address = self.matrix[row][col]
-                if address == "┈":
+                if address == self.empty:
                     self.matrix[row][col] = self.opponent_symbol
                     made_move = True
             self.test_win()
@@ -163,40 +163,37 @@ def tictactoe():
                 print('⚖️ --- the game ended in a draw')
             else:
                 print(f'👑 --- game over: {"player" if self.player_turn else "computer"} has won')
+            self.print_board()
             if input('play again? ').lower() in ['yes', 'y']:
                 return self.start()
             self.game_over = True
             return
 
         def test_win(self):
-            self.print_board()
+            def validate_win(symbol):
+                if not symbol == self.empty:
+                    return self.end_game()
             m = self.matrix
             if [n.count(self.empty) for n in m].count(0) == 3:
                 return self.end_game(draw=True)
             for i in range(3):
+                # rows
                 if m[i][0] == m[i][1] == m[i][2]:
-                    if not m[i][0] == "┈":
-                        return self.end_game()
+                    validate_win(m[i][0])
+                # cols
+                if m[0][i] == m[1][i] == m[2][i]:
+                    validate_win(m[0][i])
             t = m[0]+m[1]+m[2]
-            if t[1] == t[4] == t[7]:
-                if not t[1] == "┈":
-                    return self.end_game()
+            # diagonal
             if t[0] == t[4] == t[8]:
-                if not t[0] == "┈":
-                    return self.end_game()
+                validate_win(t[0])
             if t[2] == t[4] == t[6]:
-                if not t[2] == "┈":
-                    return self.end_game()
-            if t[0] == t[3] == t[6]:
-                if not t[0] == "┈":
-                    return self.end_game()
-            if t[2] == t[5] == t[8]:
-                if not t[2] == "┈":
-                    return self.end_game()
+                validate_win(t[2])
             return
 
         @staticmethod
         def parse_move(move):
+            move = move.upper()
             rows = {
                 'A': 0, 
                 'B': 1,
