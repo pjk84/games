@@ -174,8 +174,6 @@ def tictactoe():
                 if not symbol == self.empty:
                     return self.end_game()
             m = self.matrix
-            if [n.count(self.empty) for n in m].count(0) == 3:
-                return self.end_game(draw=True)
             for i in range(3):
                 # rows
                 if m[i][0] == m[i][1] == m[i][2]:
@@ -189,6 +187,8 @@ def tictactoe():
                 validate_win(t[0])
             if t[2] == t[4] == t[6]:
                 validate_win(t[2])
+            if [n.count(self.empty) for n in m].count(0) == 3:
+                return self.end_game(draw=True)
             return
 
         @staticmethod
