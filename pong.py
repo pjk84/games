@@ -146,8 +146,9 @@ class Pong:
         if self.pos_ball[1] == self.header_size:
                 self.pos_ball[1] += 1
                 self.delta_y *= -1
+        # on score, wait 50 ticks before starting next round
         if self.pos_ball[0] < 0:
-            # B scores. wait 50 ticks before starting next round
+            # B scores.
             self.score_b += 1
             self.count_down = 50
             self.pos_ball = None
@@ -162,7 +163,7 @@ class Pong:
             if self.score_a > 10 :
                 self.game_over = True
             return
-        # horizontal
+        # vertical 
         self.y_buffer += self.delta_y
         self.pos_ball[0] += self.delta_x
         if self.y_buffer in [1, -1]:
@@ -243,9 +244,6 @@ class Pong:
                             break
                     step_size -= 1
 
-# keys: 259:up, 258:down▇
-
-
 def main():
     try:
         difficulty = sys.argv[1]
@@ -259,11 +257,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-    
-
-
-# 121 y
-# 110 n
