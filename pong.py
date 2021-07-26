@@ -7,10 +7,13 @@ import random
 
 
 stdscr = curses.initscr()
-curses.noecho()
-stdscr.keypad(1)
-curses.cbreak()
-stdscr.timeout(20)
+
+
+def cleanup():
+    curses.echo()
+    stdscr.keypad(0)
+    curses.nocbreak()
+    curses.endwin()
 
 class Pong:
 
@@ -22,7 +25,12 @@ class Pong:
         self.difficulty = difficulty
 
     def setup(self):
+        curses.noecho()
+        stdscr.keypad(1)
+        curses.cbreak()
+        stdscr.timeout(20)
         curses.curs_set(0)
+
         self.header_size = 5
         self.max_height = int(stdscr.getmaxyx()[0]) 
         self.max_width = int(stdscr.getmaxyx()[1])
@@ -54,6 +62,7 @@ class Pong:
         self.y_buffer = 0
         self.set_delta_y()
         return [int((self.width-1)/2), int(self.header_size + self.height / 2 )]
+        # return [int((self.width-1)/2), self.header_size + self.height - 2]
     
     def set_delta_y(self):
         self.dir_y = [-1, 1][random.randint(0, 1)]
@@ -123,16 +132,20 @@ class Pong:
     
     def move_ball(self):
 
+        self.velocity = 1
         # on paddles, angle of return is random
         # left paddle hit
         if self.pos_ball[0] == 2:
+            if self.difficulty == 'hard':
+                self.velocity = [1,2][random.randint(0,1)]
             if self.pos_ball[1] >= self.pos_a and self.pos_ball[1] <= self.pos_a + self.paddle_height:
                 self.y_buffer = 0
                 self.delta_x = self.velocity
                 self.set_delta_y()
         # right paddle hit
         if self.pos_ball[0] == self.width - 3:
-           if self.pos_ball[1] >= self.pos_b and self.pos_ball[1] <= self.pos_b + self.paddle_height:
+            self.velocity = 1
+            if self.pos_ball[1] >= self.pos_b and self.pos_ball[1] <= self.pos_b + self.paddle_height:
                 self.y_buffer = 0
                 self.delta_x = -self.velocity
                 self.set_delta_y()
@@ -163,7 +176,7 @@ class Pong:
             if self.score_a > 10 :
                 self.game_over = True
             return
-        # vertical 
+        # travel 
         self.y_buffer += self.delta_y
         self.pos_ball[0] += self.delta_x
         if self.y_buffer in [1, -1]:
@@ -177,7 +190,7 @@ class Pong:
         def test_border(n, c):
             if c == -1:
                 return self.pos_a + n == self.header_size
-            return self.pos_a + self.paddle_height + n == self.max_height - 1
+            return self.pos_a + self.paddle_height + n >= self.max_height - 1
         paddle_center = self.pos_a + ((self.paddle_height - 1) / 2)
         c = 1 if paddle_center < self.pos_ball[1] else -1
         if c == 1 and self.pos_a + self.paddle_height == self.max_height:
@@ -198,8 +211,8 @@ class Pong:
                 step_size += 1
             n = random.randint(0,10)
             # make ai less perfect
-            if n < 2:
-                step_size = 2
+            if n < 3:
+                step_size = int(step_size / 2)
             self.pos_a += step_size * c
             return
         while step_size < max_step_size:
@@ -228,6 +241,7 @@ class Pong:
                     self.score_a = self.score_b = 0
                     self.game_over = False
                 if key == 110:
+                    cleanup()
                     self.quit = True
             if key in [258, 259]:
                 step_size = self.player_step_size
@@ -247,12 +261,15 @@ class Pong:
 def main():
     try:
         difficulty = sys.argv[1]
+        if not difficulty in ['hard', 'normal']:
+            difficulty = 'normal'
+        j = Pong(difficulty)
+        j.start()
     except:
         difficulty = None
-    if not difficulty in ['hard', 'normal']:
-        return
-    j = Pong(difficulty)
-    j.start()
+    finally:
+        cleanup()
+
 
 
 if __name__ == "__main__":
