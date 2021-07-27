@@ -21,10 +21,7 @@ class Snake:
 
     def __init__(self):
         pass
-        self.empty = 0
         self.quit = False
-        self.game_over = False
-
 
     def setup(self):
         curses.noecho()
@@ -32,14 +29,15 @@ class Snake:
         curses.cbreak()
         stdscr.timeout(20)
         curses.curs_set(0)
+        self.game_over = False
         self.pos_x = 0
         self.pox_y = 0
         self.food_pos = None
         self.width = 40
         self.height = 20
         self.offset = 10
-        self.all_x = [4, 3, 2, 1] 
-        self.all_y = [1, 1, 1, 1]
+        self.all_x = [int(self.width/2)] 
+        self.all_y = [int(self.height/2)]
         self.dir_y = 0
         self.dir_x = 1
         self.test = None
@@ -61,10 +59,11 @@ class Snake:
                 continue
             self.all_x[i] = x[i-1]
             self.all_y[i] = y[i-1]
-        if self.all_x[0] == self.food_pos[0] and self.all_y[0] == self.food_pos[1]:
-            self.get_food()
-            self.all_x.append(x[len(x) - 1])
-            self.all_y.append(y[len(y) - 1])
+        if self.food_pos:
+            if self.all_x[0] == self.food_pos[0] and self.all_y[0] == self.food_pos[1]:
+                self.get_food()
+                self.all_x.append(x[len(x) - 1])
+                self.all_y.append(y[len(y) - 1])
         self.test_collision()
 
     def turn(self, key):
@@ -106,7 +105,7 @@ class Snake:
             return
         if self.all_y[0] < 1 or self.all_y[0] == self.height:
             self.game_over = True
-            return
+            
 
     def start(self):
         self.setup()
@@ -114,16 +113,25 @@ class Snake:
 
     def print_board(self):
         stdscr.clear()
+        len_str = f'🐍 length: {len(self.all_x)}'
         for i in range(self.height):
             if i == 0:
-                stdscr.addstr(i, self.offset+1, f'{"".join(["_"] * (self.width))}')
+                stdscr.addstr(i, self.offset+1, f'_{len_str}{"".join(["_"] * (self.width - len(len_str)-1))}')
                 continue
             row = [f'{"_" if i == self.height - 1 else " "}'] * (self.width)
-            for n, pos_y in enumerate(self.all_y):
-                if pos_y == i:
-                    row[self.all_x[n]] = '▇'
-            if i == self.food_pos[1]:
-                row[self.food_pos[0]] = '@'
+            if self.game_over:
+                game_over_str = 'game over. Play again? y/n'
+                if i == self.height / 2:
+                # game_over_str = 'game over. play again? y/n'
+                # row[:int(self.width - (len(game_over_str ) / 2))] + [game_over_str] + row[int(self.width/2 + len(game_over_str)):]
+                # self.test = row
+                    row = row[0:int((self.width/2) - (len(game_over_str)/2))]  + [game_over_str] + row[int((self.width/2) - (len(game_over_str)/2)) + len(game_over_str):]
+            else:
+                for n, pos_y in enumerate(self.all_y):
+                    if pos_y == i:
+                        row[self.all_x[n]] = '▇'
+                if i == self.food_pos[1]:
+                    row[self.food_pos[0]] = '𓅞'
             row = "".join(row)
             stdscr.addstr(i, 10, f'┊{row}┊')
         stdscr.refresh()
@@ -132,23 +140,25 @@ class Snake:
     def run(self):
         while not self.quit:
             if not self.game_over:
+                self.move()
                 if not self.food_pos:
                     self.get_food()
                 self.print_board()   
-                time.sleep(0.1)
+            time.sleep(0.1)
             key = stdscr.getch()
             if key in range(258,262):
                 self.turn(key)
-            self.move()
+            if key in [121, 110] and self.game_over:
+                if key == 121:
+                    self.setup()
+                if key == 110:
+                    cleanup()
+                    self.quit = True
 
 def main():
-    
     j = Snake()
     j.start()
-
     cleanup()
-
-
 
 if __name__ == "__main__":
     main()
