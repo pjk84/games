@@ -98,21 +98,19 @@ class Snake:
         # snake eats self
         if len(set(list(zip(*[self.all_y, self.all_x])))) < len(self.all_x):
             self.game_over = True
-            return
         # hit wall
         if self.all_x[0] < 0 or self.all_x[0] >= self.width:
             self.game_over = True
         if self.all_y[0] < 1 or self.all_y[0] == self.height:
             self.game_over = True
             
-
     def start(self):
         self.setup()
         self.run() 
 
     def print_board(self):
         stdscr.clear()
-        len_str = f'🐍 length: {len(self.all_x)}'
+        len_str = f'snake length: {len(self.all_x)}'
         for i in range(self.height):
             if i == 0:
                 stdscr.addstr(i, self.offset+1, f'_{len_str}{"".join(["_"] * (self.width - len(len_str)-1))}')
@@ -131,7 +129,6 @@ class Snake:
             row = "".join(row)
             stdscr.addstr(i, 10, f'┊{row}┊')
         stdscr.refresh()
-
 
     def run(self):
         while not self.quit:
