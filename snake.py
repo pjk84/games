@@ -4,12 +4,7 @@ import sys
 import curses
 import random
 
-
-
-
-
 stdscr = curses.initscr()
-
 
 def cleanup():
     curses.echo()
