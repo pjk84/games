@@ -102,7 +102,6 @@ class Snake:
         # hit wall
         if self.all_x[0] < 0 or self.all_x[0] >= self.width:
             self.game_over = True
-            return
         if self.all_y[0] < 1 or self.all_y[0] == self.height:
             self.game_over = True
             
@@ -122,9 +121,6 @@ class Snake:
             if self.game_over:
                 game_over_str = 'game over. Play again? y/n'
                 if i == self.height / 2:
-                # game_over_str = 'game over. play again? y/n'
-                # row[:int(self.width - (len(game_over_str ) / 2))] + [game_over_str] + row[int(self.width/2 + len(game_over_str)):]
-                # self.test = row
                     row = row[0:int((self.width/2) - (len(game_over_str)/2))]  + [game_over_str] + row[int((self.width/2) - (len(game_over_str)/2)) + len(game_over_str):]
             else:
                 for n, pos_y in enumerate(self.all_y):
