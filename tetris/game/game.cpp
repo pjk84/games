@@ -9,13 +9,20 @@
 
 using namespace TheGame;
 
+/*
+TODO: 
 
-// Block::Block(int size, int color){
+1) shape rotation
+2) stack collission
+3) line removal
+4) levels
 
-// }
+*/
+
 WINDOW *_win;
 
 Game::Game(){
+    srand(time(0));
     initscr();
     if (!has_colors()) return;
     start_color();
@@ -51,24 +58,17 @@ void Game::setupWindow(){
     refresh();
 }
 
-void Game::drop(){
-    for(auto & b: _blocks){
-        b.setCoords(b._coords[0]+1, b._coords[1]);
-    }
-
-}
-
 void Game::test(){
     std::cout << 'test' << std::endl;
 }
 
 void Game::setupColor(){
-    init_pair(1, COLOR_WHITE, COLOR_BLACK);
-    init_pair(2, COLOR_BLACK, COLOR_RED);
-    init_pair(3, COLOR_BLACK, COLOR_CYAN);
-    init_pair(4, COLOR_BLACK, COLOR_BLUE);
-    init_pair(5, COLOR_BLACK, COLOR_YELLOW);
-    init_pair(6, COLOR_BLACK, COLOR_GREEN);
+    init_pair(1, COLOR_BLACK, COLOR_RED);
+    init_pair(2, COLOR_BLACK, COLOR_CYAN);
+    init_pair(3, COLOR_BLACK, COLOR_BLUE);
+    init_pair(4, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(5, COLOR_BLACK, COLOR_GREEN);
+    init_pair(6, COLOR_WHITE, COLOR_BLACK);
 }
 
 void Game::startGame(){
@@ -76,7 +76,7 @@ void Game::startGame(){
         _tick += 1;
         if(_tick == 1000/_timeout){
             _tick = 0;
-            // drop(); 
+            drop(); 
         }
         if (!_hasActiveBlock){
             makeBlock();
@@ -86,61 +86,63 @@ void Game::startGame(){
     }
 }
 
-int Game::getRandomColor(){
-    srand(time(NULL));
-    int colorId = rand() % 5 + 2;
-    return colorId;
+int Game::getRandomNumber(int range){
+    int r = rand() % range + 1;
+    _test = rand() % range + 1;
+    return r;
 }
    
 
 void Game::makeBlock(){
+    for(auto const & b: _activeBlocks){
+        _blocks.push_back(b);
+    }
     _activeBlocks.clear();
     _hasActiveBlock=true;
-    int colorId = getRandomColor();
-    char blockType = 2;
+    int colorId = getRandomNumber(5);
+    int blockType = getRandomNumber(7);
     std::vector<std::vector<int>> blockCoords;
-    auto pushBlock = [&] (){
+    auto pushBlock = [&] (char shapeType){
         for (auto const& v: blockCoords){
-            Block block(v, colorId);
-            _blocks.push_back(block);
+            Block block(v, colorId, shapeType);
             _activeBlocks.push_back(block);
         }
     };
     switch(blockType){
-        case 0:
+        case 1:
         // I type
             blockCoords = {{1, _center -2}, {1, _center}, {1, _center+2}, {1, _center+4}};
-            pushBlock();
-            break;
-        case 1:
-        // S type
-            blockCoords = {{1, _center -2}, {1, _center}, {2, _center}, {2, _center+2}};
-            pushBlock();
+            pushBlock('I');
             break;
         case 2:
-        // T type
-            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center}};
-            pushBlock();
+        // z type
+            blockCoords = {{1, _center -2}, {1, _center}, {2, _center}, {2, _center+2}};
+            pushBlock('Z');
             break;
         case 3:
-        // O type
-            blockCoords = {{2, _center -2}, {2, _center}, {1, _center-2}, {1, _center}};
-            pushBlock();
+        // T type
+            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center}};
+            pushBlock('T');
             break;
         case 4:
-        // Z type
-            blockCoords = {{2, _center -2}, {2, _center}, {1, _center+2}, {1, _center}};
-            pushBlock();
+        // O type
+            blockCoords = {{2, _center -2}, {2, _center}, {1, _center-2}, {1, _center}};
+            pushBlock('O');
             break;
         case 5:
-        // J type
-            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center-2}};
-            pushBlock();
+        // s type
+            blockCoords = {{2, _center -2}, {2, _center}, {1, _center+2}, {1, _center}};
+            pushBlock('S');
             break;
         case 6:
+        // J type
+            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center-2}};
+            pushBlock('J');
+            break;
+        case 7:
         // L type
             blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center+2}};
-            pushBlock();
+            pushBlock('L');
             break;
         
     }
@@ -150,6 +152,11 @@ void Game::drawBlocks(){
     // iterate blocks vector. draw each block by coords with color
     char const *block = _ch.c_str();
     for(Block const& b: _blocks){
+        wattron(_win, COLOR_PAIR(b._color));
+        mvwprintw(_win, b._coords[0], b._coords[1], block);
+        mvwprintw(_win, b._coords[0], b._coords[1]+1, block);
+    }
+    for(Block const& b: _activeBlocks){
         wattron(_win, COLOR_PAIR(b._color));
         mvwprintw(_win, b._coords[0], b._coords[1], block);
         mvwprintw(_win, b._coords[0], b._coords[1]+1, block);
@@ -167,7 +174,7 @@ void Game::printBoard(){
     box(_win, 0, 0); 
     mvwprintw(_win, 1, 1, p);
     drawBlocks();
-    wattron(_win, COLOR_PAIR(1));
+    wattron(_win, COLOR_PAIR(6));
     wrefresh(_win);
 }
 
@@ -180,34 +187,115 @@ void Game::handleKeyboardInput(){
     switch(key){
         case 261:
             // move right
-            if (_locX + 2 > _width - 2) return;
-            _locX += 2;
+            moveBlock({0, 2});
             break;
         case 258:
-            if (_locY + 1 + _blockHeight > _height){
-                return;
-            }
-            // move down
-            _locY += 1;
+            //move down
+            moveBlock({1, 0});
             break;
         case 260:
-            if (_locX - 2 < 1) return;
             // move left
-            _locX -= 2;
+            moveBlock({0, -2});
+            break;
+        case 32:
+            // space. rotate
+            break;
+            rotate();
+        case 100:
+            // d. fast drop
+            fastDrop();
             break;
     }
 }
 
-Block::Block(std::vector<int> coords, int color){
+void Game::moveBlock(std::vector<int> delta){
+    if(checkCollision(delta)){
+        return;
+    }
+    for (auto & b: _activeBlocks){
+        int newX = b._coords[1] += delta[1];
+        int newY = b._coords[0] += delta[0];
+        b.setCoords(newX, newY);
+    }
+}
+
+void Game::fastDrop(){
+    bool collided = false;
+    while(!collided){
+        if(checkCollision({1, 0})){
+            collided = true;
+            break;
+        }
+        // if no collission found, drop 1 row
+        for(auto & b: _activeBlocks){
+            b.setCoords(b._coords[1], b._coords[0] + 1);
+        }
+    }
+    return;
+}
+
+void Game::drop(){
+    if(checkCollision({1, 0})){
+         // hit bottom
+        return;
+    }
+    for(auto & b: _activeBlocks){
+        b.setCoords(b._coords[1], b._coords[0]+1);
+    }
+}
+
+void Game::rotate(){
+    for(Block const& b: _activeBlocks){
+        if(b._shapeType == 'O'){
+            // O type has no rotation
+            break;
+        }
+        if(b._shapeType){
+            break;
+        }
+    }
+}
+
+void checkRows(){
+    // test for compeleted rows. delete if found.
+    
+}
+
+bool Game::checkCollision(std::vector<int> delta){
+    bool collides = false;
+    for (auto & b: _activeBlocks){
+        // check for horizontal collision
+        if( b._coords[1] + delta[1] <= 0 || b._coords[1] + delta[1] >= _width - 2){
+            return true;
+        }
+        // vertical
+        if(b._coords[0] + delta[0] >= _height){
+            // block hit bottom
+            makeBlock();
+            return true;
+        }
+       // stack
+       for (auto & bb: _blocks){
+           if(b._coords[0] + delta[0] == bb._coords[0] && b._coords[1] + delta[1] == bb._coords[1]){
+               makeBlock();
+               checkRows();
+               return true;
+           }
+       }
+
+    }
+}
+
+Block::Block(std::vector<int> coords, int color, char shapeType){
+    _shapeType = shapeType;
     _coords = coords;
     _color = color;
 };
 
 void Block::setCoords(int x, int y){
-    _coords[0] = x;
-    _coords[1] = y;
+    _coords[0] = y;
+    _coords[1] = x;
 }
-
 
 
 int main() {

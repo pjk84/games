@@ -11,10 +11,12 @@ namespace TheGame{
 
     class Block{
     public:
+        char _shapeType;
+        std::string _chbl = "x";
         bool _isMoving = true;
         std::vector<int> _coords;
         int _color;
-        Block(std::vector<int> coords, int color);
+        Block(std::vector<int> coords, int color, char shapeType);
         void setCoords(int x, int y);
     };
     
@@ -42,12 +44,17 @@ namespace TheGame{
 
     public:
         Game();
+        void rotate();
         void setupWindow();
         void setupColor();
         void startGame();
+        void fastDrop();
         void drop();
-        int getRandomColor();
+        void checkRows();
+        int getRandomNumber(int range);
         void makeBlock();
+        void moveBlock(std::vector<int> delta);
+        bool checkCollision(std::vector<int>);
         void drawBlocks();
         void printBoard();
         void handleKeyboardInput();
