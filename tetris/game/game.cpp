@@ -17,10 +17,9 @@ using namespace TheGame;
 /*
 TODO: 
 
-1) shape rotation
-2) stack collission
-3) line removal
-4) levels
+- row removal animation (slide out)
+- show shape landing position on stack
+- levels
 
 */
 
@@ -64,10 +63,6 @@ void Game::setupWindow(){
     refresh();
 }
 
-void Game::test(){
-    std::cout << 'test' << std::endl;
-}
-
 void Game::setupColor(){
     init_pair(1, COLOR_BLACK, COLOR_RED);
     init_pair(2, COLOR_BLACK, COLOR_CYAN);
@@ -85,8 +80,12 @@ void Game::startGame(){
             _tick = 0;
             // drop();  
         }
-        if (!_hasActiveBlock){
+        if (_activeBlocks.size() == 0){
             makeBlock();
+        }
+        if(_fullRows.size() > 0){
+            // todo: animate row deletion (slide out)
+            deleteRow();
         }
         printBoard();
         handleKeyboardInput();  
@@ -115,8 +114,8 @@ void Game::makeBlock(){
     for(auto const & b: _activeBlocks){
         _blocks.push_back(b);
     }
+    _fullRows = checkRows();
     _activeBlocks.clear();
-    _hasActiveBlock=true;
     int colorId = getBlockColor();
     int blockType = getRandomNumber(7);
     std::vector<std::vector<int>> blockCoords;
@@ -149,19 +148,19 @@ void Game::makeBlock(){
             break;
         case 5:
         // s type
-            blockCoords = {{2, _center -2}, {1, _center+2}, {2, _center}, {1, _center}};
+            blockCoords = {{2, _center -2}, {2, _center}, {1, _center+2}, {1, _center}};
             pushBlock('S');
             break;
         case 6:
         // J type
-            blockCoords = {{2, _center -2}, {2, _center+2}, {2, _center}, {1, _center-2}};
+            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center-2}};
             pushBlock('J');
             break;
         case 7:
         // L type
-            blockCoords = {{2, _center -2}, {2, _center+2}, {2, _center}, {1, _center+2}};
+            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center+2}};
             pushBlock('L');
-            break;
+            break;  
         
     }
 }
@@ -227,7 +226,7 @@ void Game::handleKeyboardInput(){
 }
 
 void Game::moveBlock(std::vector<int> delta){
-    if(checkCollision(delta)){
+    if(checkCollisionSimple(delta)){
         return;
     }
     for (auto & b: _activeBlocks){
@@ -242,7 +241,7 @@ void Game::fastDrop(){
     while(!collided){
         for(auto & b: _activeBlocks){
             // check for collisions first
-            if(checkCollision({1, 0})){
+            if(checkCollisionSimple({1, 0})){
                 collided = true;
                 break;
             }
@@ -256,7 +255,7 @@ void Game::fastDrop(){
 }
 
 void Game::drop(){
-    if(checkCollision({1, 0})){
+    if(checkCollisionSimple({1, 0})){
          // hit bottom
         return;
     }
@@ -265,9 +264,46 @@ void Game::drop(){
     }
 }
 
+std::vector<int> Game::checkRows(){
+    //check if there are any closed rows.
+    // return sorted vector
+    std::map<int, int> blocksByRow;
+    std::vector<int> fullRows;
+    for(auto & b: _blocks){
+        int row = b._coords[0];
+        int col = b._coords[1];
+        if(blocksByRow.count(row) == 0){
+            blocksByRow[row] = 0;
+        }
+        blocksByRow[row] += 1;
+        if(blocksByRow[row] == (_width - 2) / 2){
+            fullRows.push_back(row);
+        }
+    }
+    sort(fullRows.begin(), fullRows.end(), std::greater<int>());
+    return fullRows;
+}
+
+void Game::deleteRow(){
+    // delete single row and collapse rows above it.
+    std::vector<Block> remainingBlocks;
+    int row = _fullRows.back();
+    for(auto & b: _blocks){
+        if( b._coords[0] == row){
+            continue;
+        }
+        if (b._coords[0] < row){
+            b._coords[0] += 1;
+        }
+        remainingBlocks.push_back(b);
+    }
+    _fullRows.pop_back();
+    _blocks = remainingBlocks;
+}
+
 void Game::rotate(){
     std::vector<int> axisPos = _activeBlocks[1]._coords;
-    bool offAxis = false;
+    std::vector<std::vector<int>> newPositions;
     for(Block & b: _activeBlocks){
         if(b._shapeType == 'O'){
             // O type has no rotation
@@ -275,48 +311,70 @@ void Game::rotate(){
         }
         int deltaY = b._coords[0] - axisPos[0];
         int deltaX = b._coords[1] - axisPos[1];
-        if(deltaX != 0 && deltaY !=0){
-            offAxis = true;
-        }
         // on axis
         if(deltaX == 0){
-            b.setCoords(axisPos[1] + (deltaY * -2), axisPos[0]);
+            newPositions.push_back({axisPos[1] + (deltaY * -2), axisPos[0]});
             continue;
         }
         if(deltaY == 0){
-            b.setCoords(axisPos[1], axisPos[0] + std::ceil(deltaX / 2));
+            newPositions.push_back({axisPos[1], int(axisPos[0] + std::ceil(deltaX / 2))});
             continue;
         }
 
         //off axis
-        b.setCoords(axisPos[1] - (deltaY*2), axisPos[0] + (std::ceil(deltaX/2)));
-
+        newPositions.push_back({axisPos[1] - (deltaY*2), int(axisPos[0] + (std::ceil(deltaX/2)))});
+    }
+    if (checkCollisionRotation(newPositions)){
+        return;
+    }
+    for(int i = 0; i < newPositions.size(); i++){
+        _activeBlocks[i].setCoords(newPositions[i][0], newPositions[i][1]);
     }
 }
 
-bool Game::checkCollision(std::vector<int> delta){
-    for (auto & b: _activeBlocks){
-        // walls
-        if( b._coords[1] + delta[1] <= 0 || b._coords[1] + delta[1] >= _width - 2){
+bool Game::checkCollisionRotation(std::vector<std::vector<int>> newPositions){
+    for(auto & p: newPositions){
+        // hits walls
+        if(p[0] < 0 || p[0] > _width - 2){
             return true;
         }
-        // bottom
-        if(b._coords[0] + delta[0] >= _height){
-            // block hits bottom of grid
-            makeBlock();
+        // hits bottom
+        if(p[1] < 0 || p[1] > _height - 1){
             return true;
         }
-        // stack
-       for (auto & bb: _blocks){
-           if(b._coords[0] + delta[0] == bb._coords[0] && b._coords[1] + delta[1] == bb._coords[1]){
-               if(delta[1] == 0){
-                   // block lands on stack.
-                    makeBlock();
-                   return true;
-               }
-               return true;
-           }
-       }
+        // hits stack
+        for(auto & b: _blocks){
+            if(b._coords[0] == p[1] && b._coords[1] == p[0]){
+                return true;
+            }
+        }
+    }
+}
+
+bool Game::checkCollisionSimple(std::vector<int> delta){
+    // check for collisions on horizontal/vertical movement
+        for (auto & b: _activeBlocks){
+            // walls
+            if( b._coords[1] + delta[1] <= 0 || b._coords[1] + delta[1] >= _width - 2){
+                return true;
+            }
+            // bottom
+            if(b._coords[0] + delta[0] >= _height){
+                // block hits bottom of grid
+                makeBlock();
+                return true;
+            }
+            // stack
+        for (auto & bb: _blocks){
+            if(b._coords[0] + delta[0] == bb._coords[0] && b._coords[1] + delta[1] == bb._coords[1]){
+                if(delta[1] == 0){
+                    // block lands on stack.
+                        makeBlock();
+                    return true;
+                }
+                return true;
+            }
+        }
     }
     return false;
 }

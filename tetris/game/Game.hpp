@@ -22,6 +22,7 @@ namespace TheGame{
     private:
         int _height, _width, _offsetX, _offsetY, _max_height, _header_height, _max_y;
         int c;
+        std::vector<int> _fullRows;
         std::vector<int> blockColors;
         // std::vector<std::vector<int>> _blocks;
         int _timeout = 50;
@@ -39,7 +40,6 @@ namespace TheGame{
         std::vector<Block> _activeBlocks;
         int _test = 0;
         std::string _testStr;
-        bool _hasActiveBlock = false;
         int _center;
 
     public:
@@ -51,15 +51,16 @@ namespace TheGame{
         void fastDrop();
         int getBlockColor();
         void drop();
-        void checkRows();
+        std::vector<int> checkRows();
         int getRandomNumber(int range);
         void makeBlock();
         void moveBlock(std::vector<int> delta);
-        bool checkCollision(std::vector<int>);
+        bool checkCollisionSimple(std::vector<int>);
+        bool checkCollisionRotation(std::vector<std::vector<int>>);
         void drawBlocks();
         void printBoard();
+        void deleteRow();
         void handleKeyboardInput();
-        void test();
     };
 };
 
