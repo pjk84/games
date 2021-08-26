@@ -5,14 +5,12 @@
 #include<vector>
 #include<string>
 
-
 namespace TheGame{
 
 
     class Block{
     public:
         char _shapeType;
-        std::string _chbl = "x";
         bool _isMoving = true;
         std::vector<int> _coords;
         int _color;
@@ -28,7 +26,8 @@ namespace TheGame{
         // std::vector<std::vector<int>> _blocks;
         int _timeout = 50;
         int _tick = 0;
-        std::string _ch = "x";
+        std::string _ch = " ";
+        // wchar_t _ch = U'🟨'; // figure out how to make this character work
         int _locX = 1;
         int _locY = 1;
         int _blockHeight = 2;
@@ -39,6 +38,7 @@ namespace TheGame{
         std::vector<Block> _blocks;
         std::vector<Block> _activeBlocks;
         int _test = 0;
+        std::string _testStr;
         bool _hasActiveBlock = false;
         int _center;
 
@@ -49,6 +49,7 @@ namespace TheGame{
         void setupColor();
         void startGame();
         void fastDrop();
+        int getBlockColor();
         void drop();
         void checkRows();
         int getRandomNumber(int range);

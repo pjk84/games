@@ -1,4 +1,6 @@
 
+
+#define _XOPEN_SOURCE_EXTENDED 1
 #include "Game.hpp"
 #include<ncurses.h>
 #include<iostream>
@@ -6,6 +8,9 @@
 #include <string>
 #include <vector>
 #include<time.h>
+#include <wchar.h>
+#include <locale.h>
+#include <cmath>
 
 using namespace TheGame;
 
@@ -22,6 +27,7 @@ TODO:
 WINDOW *_win;
 
 Game::Game(){
+    setlocale(LC_ALL, "");
     srand(time(0));
     initscr();
     if (!has_colors()) return;
@@ -69,14 +75,15 @@ void Game::setupColor(){
     init_pair(4, COLOR_BLACK, COLOR_YELLOW);
     init_pair(5, COLOR_BLACK, COLOR_GREEN);
     init_pair(6, COLOR_WHITE, COLOR_BLACK);
+    init_pair(7, COLOR_WHITE, COLOR_WHITE);
 }
 
 void Game::startGame(){
     while(!_gameOver){
-        _tick += 1;
+        _tick += 1  ;
         if(_tick == 1000/_timeout){
             _tick = 0;
-            drop(); 
+            // drop();  
         }
         if (!_hasActiveBlock){
             makeBlock();
@@ -88,23 +95,34 @@ void Game::startGame(){
 
 int Game::getRandomNumber(int range){
     int r = rand() % range + 1;
-    _test = rand() % range + 1;
     return r;
 }
-   
 
+int Game::getBlockColor(){
+    if(_blocks.size() == 0){
+        return getRandomNumber(5);
+    }
+    int* colorId = &_blocks.back()._color;
+    int color = *colorId;
+    while(*colorId - color == 0){
+        color = getRandomNumber(5);
+    }
+    return color;
+}
+
+   
 void Game::makeBlock(){
     for(auto const & b: _activeBlocks){
         _blocks.push_back(b);
     }
     _activeBlocks.clear();
     _hasActiveBlock=true;
-    int colorId = getRandomNumber(5);
+    int colorId = getBlockColor();
     int blockType = getRandomNumber(7);
     std::vector<std::vector<int>> blockCoords;
     auto pushBlock = [&] (char shapeType){
-        for (auto const& v: blockCoords){
-            Block block(v, colorId, shapeType);
+        for (int i = 0; i < blockCoords.size(); i ++){
+            Block block(blockCoords[i], colorId, shapeType);
             _activeBlocks.push_back(block);
         }
     };
@@ -126,22 +144,22 @@ void Game::makeBlock(){
             break;
         case 4:
         // O type
-            blockCoords = {{2, _center -2}, {2, _center}, {1, _center-2}, {1, _center}};
+            blockCoords = {{2, _center -2}, {1, _center-2},  {2, _center}, {1, _center}};
             pushBlock('O');
             break;
         case 5:
         // s type
-            blockCoords = {{2, _center -2}, {2, _center}, {1, _center+2}, {1, _center}};
+            blockCoords = {{2, _center -2}, {1, _center+2}, {2, _center}, {1, _center}};
             pushBlock('S');
             break;
         case 6:
         // J type
-            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center-2}};
+            blockCoords = {{2, _center -2}, {2, _center+2}, {2, _center}, {1, _center-2}};
             pushBlock('J');
             break;
         case 7:
         // L type
-            blockCoords = {{2, _center -2}, {2, _center}, {2, _center+2}, {1, _center+2}};
+            blockCoords = {{2, _center -2}, {2, _center+2}, {2, _center}, {1, _center+2}};
             pushBlock('L');
             break;
         
@@ -171,7 +189,8 @@ void Game::printBoard(){
     std::string s_concat = "key:" + std::to_string(_locY) + " locx:" + std::to_string(_locX);
     // string s_concat = to_string(c);
     char const *p = std::to_string(_test).c_str();
-    box(_win, 0, 0); 
+    char t = '_';
+    wborder(_win, 0, 0, 0 , t, 0, 0, 0, 0);
     mvwprintw(_win, 1, 1, p);
     drawBlocks();
     wattron(_win, COLOR_PAIR(6));
@@ -183,7 +202,6 @@ void Game::handleKeyboardInput(){
     if (key == -1){
         return;
     }
-    _key = key;
     switch(key){
         case 261:
             // move right
@@ -199,8 +217,8 @@ void Game::handleKeyboardInput(){
             break;
         case 32:
             // space. rotate
-            break;
             rotate();
+            break;
         case 100:
             // d. fast drop
             fastDrop();
@@ -222,9 +240,12 @@ void Game::moveBlock(std::vector<int> delta){
 void Game::fastDrop(){
     bool collided = false;
     while(!collided){
-        if(checkCollision({1, 0})){
-            collided = true;
-            break;
+        for(auto & b: _activeBlocks){
+            // check for collisions first
+            if(checkCollision({1, 0})){
+                collided = true;
+                break;
+            }
         }
         // if no collission found, drop 1 row
         for(auto & b: _activeBlocks){
@@ -245,45 +266,59 @@ void Game::drop(){
 }
 
 void Game::rotate(){
-    for(Block const& b: _activeBlocks){
+    std::vector<int> axisPos = _activeBlocks[1]._coords;
+    bool offAxis = false;
+    for(Block & b: _activeBlocks){
         if(b._shapeType == 'O'){
             // O type has no rotation
             break;
         }
-        if(b._shapeType){
-            break;
+        int deltaY = b._coords[0] - axisPos[0];
+        int deltaX = b._coords[1] - axisPos[1];
+        if(deltaX != 0 && deltaY !=0){
+            offAxis = true;
         }
-    }
-}
+        // on axis
+        if(deltaX == 0){
+            b.setCoords(axisPos[1] + (deltaY * -2), axisPos[0]);
+            continue;
+        }
+        if(deltaY == 0){
+            b.setCoords(axisPos[1], axisPos[0] + std::ceil(deltaX / 2));
+            continue;
+        }
 
-void checkRows(){
-    // test for compeleted rows. delete if found.
-    
+        //off axis
+        b.setCoords(axisPos[1] - (deltaY*2), axisPos[0] + (std::ceil(deltaX/2)));
+
+    }
 }
 
 bool Game::checkCollision(std::vector<int> delta){
-    bool collides = false;
     for (auto & b: _activeBlocks){
-        // check for horizontal collision
+        // walls
         if( b._coords[1] + delta[1] <= 0 || b._coords[1] + delta[1] >= _width - 2){
             return true;
         }
-        // vertical
+        // bottom
         if(b._coords[0] + delta[0] >= _height){
-            // block hit bottom
+            // block hits bottom of grid
             makeBlock();
             return true;
         }
-       // stack
+        // stack
        for (auto & bb: _blocks){
            if(b._coords[0] + delta[0] == bb._coords[0] && b._coords[1] + delta[1] == bb._coords[1]){
-               makeBlock();
-               checkRows();
+               if(delta[1] == 0){
+                   // block lands on stack.
+                    makeBlock();
+                   return true;
+               }
                return true;
            }
        }
-
     }
+    return false;
 }
 
 Block::Block(std::vector<int> coords, int color, char shapeType){
