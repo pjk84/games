@@ -17,13 +17,14 @@ using namespace TheGame;
 /*
 TODO: 
 
-- row removal animation (slide out)
 - show shape landing position on stack
 - levels
 
 */
 
 WINDOW *_win;
+WINDOW *_textbox;
+WINDOW *_header;
 
 Game::Game(){
     setlocale(LC_ALL, "");
@@ -60,6 +61,8 @@ void Game::setupWindow(){
     _offsetY = 2;
 
     _win = newwin(_height, _width, _offsetY, _offsetX);
+    _textbox = newwin(_height / 2, _width, _offsetY, _width + _offsetX + 2);
+    _header = newwin(3, _width, 0, _offsetX);
     refresh();
 }
 
@@ -78,6 +81,9 @@ void Game::startGame(){
         _tick += 1;
         if(_tick == _buffer/_timeout){
             _tick = 0;
+            if(_paused){
+                continue;
+            }
             drop();  
         }
         if (_activeBlocks.size() == 0){
@@ -156,12 +162,12 @@ void Game::deleteRow(){
 
 void Game::setScore(){
     _score += 1;
-    if(_score % 2 == 0){
+    if(_score % 5 == 0){
         if(_buffer > 50){
             _buffer -= 50;
+            _level += 1;
         }
     }
-    _test = _level;
 }
 
 int Game::getRandomNumber(int range){
@@ -238,7 +244,6 @@ void Game::makeBlock(){
 }
 
 void Game::drawBlocks(){
-    // iterate blocks vector. draw each block by coords with color
     char const *block = _ch.c_str();
     for(Block const& b: _blocks){
         wattron(_win, COLOR_PAIR(b._color));
@@ -250,22 +255,55 @@ void Game::drawBlocks(){
         mvwprintw(_win, b._coords[0], b._coords[1], block);
         mvwprintw(_win, b._coords[0], b._coords[1]+1, block);
     }
+    if(_showAssistor){
+     projectAssistor();
+    }
+}
+
+void Game::projectAssistor(){
+  // find lowest colliding y
+  int d = _height;
+  int i = 0;
+  for(int i = 0; i < _activeBlocks.size(); i++){
+      int deltaY = _height - _activeBlocks[i]._coords[0];
+      if(deltaY < d){
+          d = deltaY;
+      }
+      for(auto const & bb: _blocks){
+          if(bb._coords[1] == _activeBlocks[i]._coords[1]){
+              deltaY = (bb._coords[0] - _activeBlocks[i]._coords[0]);
+              if(deltaY < d ){
+                  d = deltaY;
+              }
+          }
+      }
+  }
+  for(int i = 0; i < _activeBlocks.size(); i++){
+      mvwprintw(_win, _activeBlocks[i]._coords[0] + (d - 1), _activeBlocks[i]._coords[1], _ch.c_str());
+      mvwprintw(_win, _activeBlocks[i]._coords[0] + (d - 1), _activeBlocks[i]._coords[1]+1, _ch.c_str());
+  }
 }
 
 void Game::printBoard(){
     counter += 1;
     werase(_win);
+    werase(_textbox);
+    werase(_header);
     // c = getch();
     std::string s = "" ;
     std::string s_concat = "key:" + std::to_string(_locY) + " locx:" + std::to_string(_locX);
     // string s_concat = to_string(c);
-    char const *p = std::to_string(_test).c_str();
-    char t = '_';
-    wborder(_win, 0, 0, 0 , t, 0, 0, 0, 0);
-    mvwprintw(_win, 1, 1, p);
+    char const *p = _paused ? _t.c_str() : (" score:" + std::to_string(_score) + " " + std::string(" level:") + std::to_string(_level)).c_str();
+    wborder(_win, 0, 0, 0 , '_', 0, 0, 0, 0);
+    box(_header, 0, 0);
+    mvwprintw(_header, 1, 1, p);
+    char const *instructions = _instructions.c_str();
+    mvwprintw(_textbox, 1, 0, instructions);
     drawBlocks();
     wattron(_win, COLOR_PAIR(6));
     wrefresh(_win);
+    wrefresh(_textbox);
+    wrefresh(_header);
 }
 
 void Game::handleKeyboardInput(){
@@ -294,11 +332,28 @@ void Game::handleKeyboardInput(){
             // d. fast drop
             fastDrop();
             break;
+        case 97:
+            // toggle assistor
+            _showAssistor = !_showAssistor;
+            break;
+        case 112:
+            // toggle assistor
+            if(_paused){
+                _t = "";
+                _paused = false;
+                break;
+            }
+            _t = "- game paused - ";
+            _paused = true;
+            break;
     }
 }
 
 void Game::moveBlock(std::vector<int> delta){
-    if(checkCollisionSimple(delta)){
+    if(_paused){
+        return;
+    }
+    if(checkCollision(delta)){
         return;
     }
     for (auto & b: _activeBlocks){
@@ -309,11 +364,14 @@ void Game::moveBlock(std::vector<int> delta){
 }
 
 void Game::fastDrop(){
+    if(_paused){
+        return;
+    }
     bool collided = false;
     while(!collided){
         for(auto & b: _activeBlocks){
             // check for collisions first
-            if(checkCollisionSimple({1, 0})){
+            if(checkCollision({1, 0})){
                 collided = true;
                 break;
             }
@@ -327,7 +385,7 @@ void Game::fastDrop(){
 }
 
 void Game::drop(){
-    if(checkCollisionSimple({1, 0})){
+    if(checkCollision({1, 0})){
          // hit bottom
         return;
     }
@@ -386,7 +444,7 @@ bool Game::checkCollisionRotation(std::vector<std::vector<int>> newPositions){
     }
 }
 
-bool Game::checkCollisionSimple(std::vector<int> delta){
+bool Game::checkCollision(std::vector<int> delta){
     // check for collisions on horizontal/vertical movement
         for (auto & b: _activeBlocks){
             // walls
