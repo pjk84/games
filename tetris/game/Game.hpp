@@ -10,6 +10,8 @@ namespace TheGame{
 
     class Block{
     public:
+        bool _slide = false;
+        int _slideCounter = 0;
         char _shapeType;
         bool _isMoving = true;
         std::vector<int> _coords;
@@ -22,10 +24,13 @@ namespace TheGame{
     private:
         int _height, _width, _offsetX, _offsetY, _max_height, _header_height, _max_y;
         int c;
+        int _score = 0;
+        int _level = 1;
         std::vector<int> _fullRows;
         std::vector<int> blockColors;
         // std::vector<std::vector<int>> _blocks;
         int _timeout = 50;
+        int _buffer = 1000;
         int _tick = 0;
         std::string _ch = " ";
         // wchar_t _ch = U'🟨'; // figure out how to make this character work
@@ -51,7 +56,7 @@ namespace TheGame{
         void fastDrop();
         int getBlockColor();
         void drop();
-        std::vector<int> checkRows();
+        void checkRows();
         int getRandomNumber(int range);
         void makeBlock();
         void moveBlock(std::vector<int> delta);
@@ -60,7 +65,9 @@ namespace TheGame{
         void drawBlocks();
         void printBoard();
         void deleteRow();
+        void shiftBlocks();
         void handleKeyboardInput();
+        void setScore();
     };
 };
 

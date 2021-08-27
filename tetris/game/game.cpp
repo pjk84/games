@@ -75,21 +75,93 @@ void Game::setupColor(){
 
 void Game::startGame(){
     while(!_gameOver){
-        _tick += 1  ;
-        if(_tick == 1000/_timeout){
+        _tick += 1;
+        if(_tick == _buffer/_timeout){
             _tick = 0;
-            // drop();  
+            drop();  
         }
         if (_activeBlocks.size() == 0){
             makeBlock();
         }
         if(_fullRows.size() > 0){
-            // todo: animate row deletion (slide out)
-            deleteRow();
+            shiftBlocks();
         }
         printBoard();
         handleKeyboardInput();  
     }
+}
+
+void Game::shiftBlocks(){
+    // slide blocks in full rows to the right
+    bool d = false;
+    int slideStepSize = 8;
+    for(auto & b: _blocks){
+        if(b._coords[0] != _fullRows.back()){
+            continue;
+        }
+        if(b._slideCounter >= _width - 2){
+            d = true;
+        }
+        if(b._slide){
+            b._slideCounter += slideStepSize;
+            b.setCoords(b._coords[1] + slideStepSize , b._coords[0]);
+        }
+    }
+    if(d){
+        deleteRow();
+    }
+}
+
+void Game::checkRows(){
+    //check if there are any closed rows.
+    // return sorted vector
+    std::map<int, int> blocksByRow;
+    for(auto & b: _blocks){
+        int row = b._coords[0];
+        int col = b._coords[1];
+        if(blocksByRow.count(row) == 0){
+            blocksByRow[row] = 0;
+        }
+        blocksByRow[row] += 1;
+        if(blocksByRow[row] == (_width - 2) / 2){
+            _fullRows.push_back(row);
+        }
+    }
+    for(auto &b : _blocks){
+        // set slide flag for animation
+        if(std::find(_fullRows.begin(), _fullRows.end(), b._coords[0]) != _fullRows.end()){
+            b._slide = true;
+        }
+    }
+    sort(_fullRows.begin(), _fullRows.end(), std::greater<int>());
+}
+
+void Game::deleteRow(){
+    // delete single row and collapse rows above it.
+    std::vector<Block> remainingBlocks;
+    int row = _fullRows.back();
+    for(auto & b: _blocks){
+        if( b._coords[0] == row){
+            continue;
+        }
+        if (b._coords[0] < row){
+            b._coords[0] += 1;
+        }
+        remainingBlocks.push_back(b);
+    }
+    _fullRows.pop_back();
+    _blocks = remainingBlocks;
+    setScore();
+}
+
+void Game::setScore(){
+    _score += 1;
+    if(_score % 2 == 0){
+        if(_buffer > 50){
+            _buffer -= 50;
+        }
+    }
+    _test = _level;
 }
 
 int Game::getRandomNumber(int range){
@@ -114,7 +186,7 @@ void Game::makeBlock(){
     for(auto const & b: _activeBlocks){
         _blocks.push_back(b);
     }
-    _fullRows = checkRows();
+    checkRows();
     _activeBlocks.clear();
     int colorId = getBlockColor();
     int blockType = getRandomNumber(7);
@@ -262,43 +334,6 @@ void Game::drop(){
     for(auto & b: _activeBlocks){
         b.setCoords(b._coords[1], b._coords[0]+1);
     }
-}
-
-std::vector<int> Game::checkRows(){
-    //check if there are any closed rows.
-    // return sorted vector
-    std::map<int, int> blocksByRow;
-    std::vector<int> fullRows;
-    for(auto & b: _blocks){
-        int row = b._coords[0];
-        int col = b._coords[1];
-        if(blocksByRow.count(row) == 0){
-            blocksByRow[row] = 0;
-        }
-        blocksByRow[row] += 1;
-        if(blocksByRow[row] == (_width - 2) / 2){
-            fullRows.push_back(row);
-        }
-    }
-    sort(fullRows.begin(), fullRows.end(), std::greater<int>());
-    return fullRows;
-}
-
-void Game::deleteRow(){
-    // delete single row and collapse rows above it.
-    std::vector<Block> remainingBlocks;
-    int row = _fullRows.back();
-    for(auto & b: _blocks){
-        if( b._coords[0] == row){
-            continue;
-        }
-        if (b._coords[0] < row){
-            b._coords[0] += 1;
-        }
-        remainingBlocks.push_back(b);
-    }
-    _fullRows.pop_back();
-    _blocks = remainingBlocks;
 }
 
 void Game::rotate(){
