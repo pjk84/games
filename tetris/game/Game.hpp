@@ -35,9 +35,6 @@ namespace TheGame{
         int _buffer = 1000;
         int _tick = 0;
         std::string _ch = " ";
-        // int _locX = 1;
-        // int _locY = 1;
-        // int _blockHeight = 2;
         int counter;
         int _key;
         std::vector<Block> _blocks;
