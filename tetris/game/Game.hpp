@@ -4,6 +4,7 @@
 #include<list>
 #include<vector>
 #include<string>
+#include<array>
 
 namespace TheGame{
 
@@ -15,21 +16,23 @@ namespace TheGame{
         char _shapeType;
         std::string _blockType;
         bool _isMoving = true;
-        std::vector<int> _coords;
+        std::array<int, 2> _coords;
         int _color;
-        Block(std::vector<int> coords, int color, char shapeType);
+        Block(std::array<int, 2> coords, int color, char shapeType);
         void setCoords(int x, int y);
     };
     
     
     class Game {
     private:
+        bool _quit = false;
+        bool _gameOver = false;
         int _height, _width, _offsetX, _offsetY, _max_height, _header_height, _max_y;
         int c;
         bool _paused = false;
         int _score = 0;
         int _level = 1;
-        bool _showAssistor = false;
+        bool _showHelper = false;
         std::vector<int> _fullRows;
         std::vector<int> blockColors;
         // std::vector<std::vector<int>> _blocks;
@@ -43,18 +46,19 @@ namespace TheGame{
         int counter;
         int _key;
         std::list<int> keysPressed;
-        bool _gameOver = false;
         std::vector<Block> _blocks;
         std::vector<Block> _activeBlocks;
         std::vector<Block> _assistorBlocks;
         std::string _t;
+        int _test;
         int _center;
         std::string _instructions = 
-                    "- move blocks: arrow keys \n" 
-                    + std::string("- rotate: space bar \n") 
-                    + std::string("- toggle helper: a \n")
-                    + std::string("- pauze game: p \n")
-                    + std::string("- rotate: space bar \n");
+                    "controls: \n\n" 
+                    "- arrow keys: move block \n" 
+                    + std::string("- SPACE: rotate \n") 
+                    + std::string("- D: fast drop \n") 
+                    + std::string("- A: toggle helper\n")
+                    + std::string("- P: pauze game\n");
 
 
     public:
@@ -78,7 +82,7 @@ namespace TheGame{
         void shiftBlocks();
         void handleKeyboardInput();
         void setScore();
-        void projectAssistor();
+        void renderHelperBlock();
     };
 };
 

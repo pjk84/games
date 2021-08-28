@@ -51,12 +51,10 @@ void Game::setupWindow(){
     if (_max_y > _max_height){
         _max_y = _max_height;
     }
-    _height = _max_y;
-    _width = _height;
-    _center = _width / 2;
-    if (_width % 2 != 0){
-        _width += 1;
-    }
+    _height = 26;
+    _width = 26;
+    _center = (_width / 2);
+    
     _offsetX = 10;
     _offsetY = 2;
 
@@ -66,7 +64,7 @@ void Game::setupWindow(){
     refresh();
 }
 
-void Game::setupColor(){
+void Game::setupColor(){       
     init_pair(1, COLOR_BLACK, COLOR_RED);
     init_pair(2, COLOR_BLACK, COLOR_CYAN);
     init_pair(3, COLOR_BLACK, COLOR_BLUE);
@@ -77,20 +75,22 @@ void Game::setupColor(){
 }
 
 void Game::startGame(){
-    while(!_gameOver){
-        _tick += 1;
-        if(_tick == _buffer/_timeout){
-            _tick = 0;
-            if(_paused){
-                continue;
+    while(!_quit){
+        if(!_gameOver){
+            _tick += 1;
+            if(_tick >= _buffer/_timeout){
+                _tick = 0;
+                if(_paused){
+                    continue;
+                }
+                drop();  
             }
-            drop();  
-        }
-        if (_activeBlocks.size() == 0){
-            makeBlock();
-        }
-        if(_fullRows.size() > 0){
-            shiftBlocks();
+            if (_activeBlocks.size() == 0){
+                makeBlock();
+            }
+            if(_fullRows.size() > 0){
+                shiftBlocks();
+            }
         }
         printBoard();
         handleKeyboardInput();  
@@ -100,7 +100,7 @@ void Game::startGame(){
 void Game::shiftBlocks(){
     // slide blocks in full rows to the right
     bool d = false;
-    int slideStepSize = 8;
+    int slideStepSize = 5;
     for(auto & b: _blocks){
         if(b._coords[0] != _fullRows.back()){
             continue;
@@ -125,6 +125,10 @@ void Game::checkRows(){
     for(auto & b: _blocks){
         int row = b._coords[0];
         int col = b._coords[1];
+        if(row == 1){
+            _gameOver = true;
+            return;
+        }
         if(blocksByRow.count(row) == 0){
             blocksByRow[row] = 0;
         }
@@ -192,11 +196,12 @@ void Game::makeBlock(){
     for(auto const & b: _activeBlocks){
         _blocks.push_back(b);
     }
+    
     checkRows();
     _activeBlocks.clear();
     int colorId = getBlockColor();
     int blockType = getRandomNumber(7);
-    std::vector<std::vector<int>> blockCoords;
+    std::vector<std::array<int, 2>> blockCoords;
     auto pushBlock = [&] (char shapeType){
         for (int i = 0; i < blockCoords.size(); i ++){
             Block block(blockCoords[i], colorId, shapeType);
@@ -255,12 +260,19 @@ void Game::drawBlocks(){
         mvwprintw(_win, b._coords[0], b._coords[1], block);
         mvwprintw(_win, b._coords[0], b._coords[1]+1, block);
     }
-    if(_showAssistor){
-     projectAssistor();
+    if (_gameOver){
+        wattron(_win, COLOR_PAIR(6));
+        char const *g1 = "game over.";
+        char const *g2 = "play again? y/n";
+        mvwprintw(_win, _height/2 - 2, _width/2 - 5, g1);
+        mvwprintw(_win, _height/2 - 1, _width/2 - 7, g2);
+    }
+    if(_showHelper){
+     renderHelperBlock();
     }
 }
 
-void Game::projectAssistor(){
+void Game::renderHelperBlock(){
   // find lowest colliding y
   int d = _height;
   int i = 0;
@@ -278,6 +290,11 @@ void Game::projectAssistor(){
           }
       }
   }
+  if(d < 10){
+      // hide helper when too close to blocks
+      return;
+  }
+  wattron(_win, COLOR_PAIR(7));
   for(int i = 0; i < _activeBlocks.size(); i++){
       mvwprintw(_win, _activeBlocks[i]._coords[0] + (d - 1), _activeBlocks[i]._coords[1], _ch.c_str());
       mvwprintw(_win, _activeBlocks[i]._coords[0] + (d - 1), _activeBlocks[i]._coords[1]+1, _ch.c_str());
@@ -292,8 +309,7 @@ void Game::printBoard(){
     // c = getch();
     std::string s = "" ;
     std::string s_concat = "key:" + std::to_string(_locY) + " locx:" + std::to_string(_locX);
-    // string s_concat = to_string(c);
-    char const *p = _paused ? _t.c_str() : (" score:" + std::to_string(_score) + " " + std::string(" level:") + std::to_string(_level)).c_str();
+    char const *p =  _paused ? _t.c_str() : (" score:" + std::to_string(_score) + " " + std::string(" level:") + std::to_string(_level)).c_str();
     wborder(_win, 0, 0, 0 , '_', 0, 0, 0, 0);
     box(_header, 0, 0);
     mvwprintw(_header, 1, 1, p);
@@ -333,11 +349,11 @@ void Game::handleKeyboardInput(){
             fastDrop();
             break;
         case 97:
-            // toggle assistor
-            _showAssistor = !_showAssistor;
+            // toggle helper
+            _showHelper = !_showHelper;
             break;
         case 112:
-            // toggle assistor
+            // toggle helper
             if(_paused){
                 _t = "";
                 _paused = false;
@@ -373,8 +389,10 @@ void Game::fastDrop(){
             // check for collisions first
             if(checkCollision({1, 0})){
                 collided = true;
-                break;
             }
+        }
+        if(collided){
+            break;
         }
         // if no collission found, drop 1 row
         for(auto & b: _activeBlocks){
@@ -395,7 +413,7 @@ void Game::drop(){
 }
 
 void Game::rotate(){
-    std::vector<int> axisPos = _activeBlocks[1]._coords;
+    std::array<int, 2> axisPos = _activeBlocks[1]._coords;
     std::vector<std::vector<int>> newPositions;
     for(Block & b: _activeBlocks){
         if(b._shapeType == 'O'){
@@ -472,7 +490,7 @@ bool Game::checkCollision(std::vector<int> delta){
     return false;
 }
 
-Block::Block(std::vector<int> coords, int color, char shapeType){
+Block::Block(std::array<int, 2> coords, int color, char shapeType){
     _shapeType = shapeType;
     _coords = coords;
     _color = color;
