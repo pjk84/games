@@ -308,7 +308,6 @@ void Game::printBoard(){
     werase(_header);
     // c = getch();
     std::string s = "" ;
-    std::string s_concat = "key:" + std::to_string(_locY) + " locx:" + std::to_string(_locX);
     char const *p =  _paused ? _t.c_str() : (" score:" + std::to_string(_score) + " " + std::string(" level:") + std::to_string(_level)).c_str();
     wborder(_win, 0, 0, 0 , '_', 0, 0, 0, 0);
     box(_header, 0, 0);
